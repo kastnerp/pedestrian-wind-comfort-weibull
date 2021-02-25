@@ -1,5 +1,9 @@
 import math
 
+
+# Attempt with exponweib.fit
+
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -46,11 +50,19 @@ ax.set_ylabel("Probability")
 ax.set_xlabel("Wind velocity [m/s]")
 plt.show()
 
+
+
+###################################
+###################################
+###################################
+
 # file:///C:/Users/pkastner/Desktop/sustainability-10-00274.pdf
 
 
-# Exceedance probability
+# Plot Exceedance probability
 # https://stackoverflow.com/questions/49244352/exceedance-1-cdf-plot-using-seaborn-and-pandas
+
+
 
 import numpy as np
 
@@ -108,7 +120,11 @@ ax2.plot(bins_cont, ex_manual, 'r')
 
 
 
-# attempt with weib min
+###################################
+###################################
+###################################
+
+# attempt with weibull_min.fit, matches C# library
 
 # c : array_like
 
@@ -143,41 +159,71 @@ df_wdir = pd.read_csv("wdir.csv", header=None)
 data = pd.concat([df_ws, df_wdir], axis=1)
 data.columns = ['ws', 'wdir']
 
-#The a and loc are fixed in the fit since it is standard to assume they are known
-Kappa_out, loc_out,  Lambda_out = stats.weibull_min.fit(data['ws'])
-
-#Plot
-
-bins_hist = np.linspace(0, 20, 21)
-bins_cont = np.linspace(0, 20, 81)
 
 
-fig = plt.figure()
-ax = fig.add_subplot(1, 1, 1)
-ax.plot(bins_cont, stats.weibull_min.pdf(bins_cont,c=Kappa_out,loc=loc_out,scale = Lambda_out))
-ax.hist(data['ws'], bins = bins_hist , density=True, alpha=0.5)
-ax.annotate("Shape: $k = %.2f$ \n Scale: $\lambda = %.2f$"%(Kappa_out,Lambda_out), xy=(0.7, 0.85), xycoords=ax.transAxes)
+def fit_and_plot(column):
 
-def prob_exceedance(a_theta, u, k, c):
-    # not in percentage
-    # c = lambda
-    return a_theta * math.exp(-(u / c) ** k)
+    #The a and loc are fixed in the fit since it is standard to assume they are known
+    Kappa_out, loc_out,  Lambda_out = stats.weibull_min.fit(column)
 
+    #Plot
 
-def a_theta(wind_dir, arr):
-    return len(np.where((arr < wind_dir + 15) | (arr > wind_dir - 15 + 360))[0]) / len(arr)
+    bins_hist = np.linspace(0, 20, 21)
+    bins_cont = np.linspace(0, 20, 81)
 
 
-pe = prob_exceedance(1, 1, Kappa_out, Lambda_out)
-print(pe)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(bins_cont, stats.weibull_min.pdf(bins_cont,c=Kappa_out,loc=loc_out,scale = Lambda_out))
+    ax.hist(column, bins = bins_hist , density=True, alpha=0.5)
+    ax.annotate("Shape: $k = %.2f$ \n Scale: $\lambda = %.2f$"%(Kappa_out,Lambda_out), xy=(0.7, 0.85), xycoords=ax.transAxes)
 
-ex_manual = []
-for i in bins_cont:
-    ex_manual.append(prob_exceedance(1, i, Kappa_out, Lambda_out))
+    def prob_exceedance(a_theta, u, k, c):
+        # not in percentage
+        # c = lambda
+        return a_theta * math.exp(-(u / c) ** k)
 
-ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
-ax2.plot(bins_cont, ex_manual, 'r')
-ax.set_ylabel("Density")
-ax2.set_ylabel("Probability")
-ax.set_xlabel("Wind velocity [m/s]")
-plt.show()
+    # https://www.desmos.com/calculator/q5j5jhhit0
+
+    def a_theta(wind_dir, arr):
+        return len(np.where((arr < wind_dir + 15) | (arr > wind_dir - 15 + 360))[0]) / len(arr)
+
+
+    pe = prob_exceedance(1, 1, Kappa_out, Lambda_out)
+    print(pe)
+
+    ex_manual = []
+    for i in bins_cont:
+        ex_manual.append(prob_exceedance(1, i, Kappa_out, Lambda_out))
+
+    ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
+    ax2.plot(bins_cont, ex_manual, 'r')
+    ax.set_ylabel("Density")
+    ax2.set_ylabel("Probability")
+    ax.set_xlabel("Wind velocity [m/s]")
+    plt.show()
+
+fit_and_plot(data['ws'])
+
+
+
+### Testing
+
+
+def ScaleABL( URefEPW,  zref,  z0,  probingHeight):
+    import math
+
+    zGround = 0
+
+    Kappa = 0.41
+
+
+    U_star = Kappa * URefEPW / (math.log((zref + z0) / z0))
+
+    return U_star / Kappa * math.log((probingHeight - zGround + z0) / z0)
+
+
+ScaleABL(4.5815, 2, 1, 10)
+
+
+
